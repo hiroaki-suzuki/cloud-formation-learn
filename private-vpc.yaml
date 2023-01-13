@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Private VPC Network Template with SSM Session Manager
+
+Parameters:
+  ProjectName:
+    Type: String
+
+Resources:
+  # VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: "10.0.0.0/16"
+      EnableDnsSupport: "true"
+      EnableDnsHostnames: "true"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-vpc"
+  # Subnet
+  AppSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: "ap-northeast-1a"
+      CidrBlock: "10.0.0.0/24"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-app-subnet-a"
+  DbSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: "ap-northeast-1a"
+      CidrBlock: "10.0.10.0/24"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-db-subnet-a"
+  DbSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: "ap-northeast-1c"
+      CidrBlock: "10.0.11.0/24"
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-db-subnet-c"
+  # Security Group
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${ProjectName}-app-sg"
+      GroupDescription: "for app"
+      VpcId: !Ref VPC
+  AppSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt AppSecurityGroup.GroupId
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !GetAtt AppSecurityGroup.GroupId
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${ProjectName}-db-sg"
+      GroupDescription: "for db"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !GetAtt AppSecurityGroup.GroupId
+  # Endpoint
+  SsmEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: "com.amazonaws.ap-northeast-1.ssm"
+      VpcEndpointType: Interface
+      VpcId: !Ref VPC
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref AppSubnet
+      SecurityGroupIds:
+        - !Ref AppSecurityGroup
+  SsmMessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: "com.amazonaws.ap-northeast-1.ssmmessages"
+      VpcEndpointType: Interface
+      VpcId: !Ref VPC
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref AppSubnet
+      SecurityGroupIds:
+        - !Ref AppSecurityGroup
+  Ec2messagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: "com.amazonaws.ap-northeast-1.ec2messages"
+      VpcEndpointType: Interface
+      VpcId: !Ref VPC
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref AppSubnet
+      SecurityGroupIds:
+        - !Ref AppSecurityGroup
+  # EC2
+  BastionEC2:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-0ecb2a61303230c9d
+      InstanceType: t2.micro
+      KeyName: aws-rirazou0101
+      NetworkInterfaces:
+        - DeviceIndex: 0
+          SubnetId: !Ref AppSubnet
+          GroupSet:
+            - !Ref AppSecurityGroup
+      IamInstanceProfile: hs-ssm-session-manager-connect
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectName}-bastion-ec2"
