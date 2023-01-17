@@ -8,7 +8,7 @@ Resources:
       CidrBlock: 10.0.0.0/16
       Tags:
         - Key: Name
-          Value: hs-s-ec2-vpc
+          Value: !Join [ "-", [ !Ref AWS::StackName, "vpc" ] ]
   Subnet:
     Type: AWS::EC2::Subnet
     Properties:
@@ -17,13 +17,13 @@ Resources:
       AvailabilityZone: "ap-northeast-1a"
       Tags:
         - Key: Name
-          Value: hs-s-ec2-public-subnet
+          Value: !Join [ "-", [ !Ref AWS::StackName, "public","subnet" ] ]
   InternetGateway:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: Name
-          Value: hs-s-ec2-igw
+          Value: !Join [ "-", [ !Ref AWS::StackName, "igw" ] ]
   InternetGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
@@ -35,7 +35,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: hs-s-ec2-rtb
+          Value: !Join [ "-", [ !Ref AWS::StackName, "rtb" ] ]
   RoutePublic:
     Type: AWS::EC2::Route
     Properties:
@@ -45,7 +45,7 @@ Resources:
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: hs-s-ec2-sg
+      GroupName: !Join [ "-", [ !Ref AWS::StackName, "sg" ] ]
       GroupDescription: "Public security group"
       VpcId: !Ref VPC
       SecurityGroupIngress:
@@ -55,12 +55,12 @@ Resources:
           CidrIp: 10.0.0.0/24
       Tags:
         - Key: Name
-          Value: hs-s-ec2-sg
+          Value: !Join [ "-", [ !Ref AWS::StackName, "sg" ] ]
   # IAM
   EC2Role:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: hs-s-ec2-ec2-role
+      RoleName: !Join [ "-", [ !Ref AWS::StackName, "ec2", "role" ] ]
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -80,6 +80,22 @@ Resources:
   # EC2
   EC2:
     Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          commands:
+            run1Nginx:
+              command: "amazon-linux-extras install nginx1"
+          services:
+            sysvinit:
+              nginx:
+                enabled: "true"
+                ensureRunning: "true"
+                files:
+                  - "/etc/nginx/nginx.conf"
+                  - "/etc/nginx/conf.d/default.conf"
+                sources:
+                  - "/var/www/html"
     Properties:
       ImageId: "ami-0bba69335379e17f8"
       InstanceType: t2.micro
@@ -87,4 +103,4 @@ Resources:
       KeyName: aws-rirazou0101
       Tags:
         - Key: Name
-          Value: hs-s-ec2-ec2
+          Value: !Join [ "-", [ !Ref AWS::StackName, "ec2" ] ]
